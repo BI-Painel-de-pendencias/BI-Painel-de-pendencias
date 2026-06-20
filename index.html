@@ -1,0 +1,669 @@
+
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Pendências OCS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e334d;
+    --accent: #4f8ef7;
+    --accent2: #f7934f;
+    --danger: #f74f4f;
+    --success: #4ff7a0;
+    --warn: #f7e04f;
+    --text: #e8eaf6;
+    --muted: #7880a8;
+    --font: 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .header-title h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+  .header-title p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .badge-total {
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  /* CARDS SUMMARY */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    border-radius: 10px 0 0 10px;
+    background: var(--card-color, var(--accent));
+  }
+  .card:hover { transform: translateY(-2px); border-color: var(--card-color, var(--accent)); }
+  .card.active { border-color: var(--card-color, var(--accent)); background: var(--surface2); }
+  .card-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .card-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--card-color, var(--accent));
+    line-height: 1;
+  }
+  .card-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .card-oldest {
+    font-size: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+    padding: 2px 6px;
+    display: inline-block;
+    margin-top: 6px;
+    color: var(--warn);
+    font-weight: 600;
+  }
+
+  /* CHART AREA */
+  .chart-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .chart-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .chart-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .toggle-group {
+    display: flex;
+    gap: 6px;
+  }
+  .toggle-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .toggle-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  canvas { max-height: 340px; }
+
+  /* TABLE */
+  .table-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 10px;
+    border-bottom: 1px solid rgba(46,51,77,0.5);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .grupo-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .bar-cell {
+    min-width: 120px;
+  }
+  .bar-bg {
+    background: rgba(255,255,255,0.07);
+    border-radius: 3px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .oldest-tag {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--warn);
+  }
+
+  /* MINI MONTHLY CHART */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width:700px) { .two-col { grid-template-columns: 1fr; } }
+
+  .info-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .info-pill strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">
+    <h1>📋 Painel de Pendências OCS — Prazo de Execução</h1>
+    <p>Relatório gerado em 18/06/2026 · Total de ordens analisadas</p>
+  </div>
+  <span class="badge-total" id="totalBadge">Carregando…</span>
+</div>
+
+<div class="info-pill">
+  Clique em um grupo para filtrar os gráficos. Os dados mostram a <strong>distribuição por mês/ano do Prazo de Execução</strong>, permitindo identificar ordens mais antigas por grupo.
+</div>
+
+<!-- CARDS -->
+<div class="cards" id="cardsContainer"></div>
+
+<!-- CHARTS -->
+<div class="two-col">
+  <div class="chart-section">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title" id="chartTitle">Volume por Mês — Todos os Grupos</div>
+        <div class="chart-sub" id="chartSub">Prazo de Execução por mês/ano</div>
+      </div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" onclick="setView('bar')">Barras</button>
+        <button class="toggle-btn" onclick="setView('line')">Linha</button>
+      </div>
+    </div>
+    <canvas id="mainChart"></canvas>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Distribuição por Grupo</div>
+        <div class="chart-sub">Total de ordens em aberto</div>
+      </div>
+    </div>
+    <canvas id="pieChart"></canvas>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="table-section">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Detalhamento por Grupo</div>
+      <div class="chart-sub">Mês mais antigo e volume total</div>
+    </div>
+  </div>
+  <table id="summaryTable">
+    <thead>
+      <tr>
+        <th>Grupo</th>
+        <th class="num">Total OS</th>
+        <th>Mês mais antigo</th>
+        <th>Distribuição</th>
+        <th class="num">% do total</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<!-- MONTHLY BREAKDOWN TABLE -->
+<div class="table-section">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title" id="monthlyTitle">Volume Mensal — Todos os Grupos</div>
+      <div class="chart-sub">Quantidade de OS por mês de prazo</div>
+    </div>
+  </div>
+  <table id="monthlyTable">
+    <thead id="monthlyHead"></thead>
+    <tbody id="monthlyBody"></tbody>
+  </table>
+</div>
+
+<script>
+// =============================================
+// DATA — extracted from Excel analysis
+// =============================================
+const DATA = {
+  grupos: [
+    "HIDROMETRO CORRETIVO",
+    "CORTE",
+    "EXAME PREDIAL",
+    "(SEM CLASSIFICAÇÃO DEFINIDA)",
+    "SUPRESSÃO",
+    "AFERIÇÃO",
+    "APROVAÇÃO AGUA",
+    "APROVAÇÃO ESGOTO",
+    "ERRO",
+    "FITA LACRE"
+  ],
+  meses: [
+    "Set/2024","Out/2024","Dez/2024",
+    "Jan/2025","Fev/2025","Mar/2025","Abr/2025","Mai/2025","Jun/2025","Jul/2025","Ago/2025","Set/2025","Out/2025","Nov/2025","Dez/2025",
+    "Jan/2026","Fev/2026","Mar/2026","Abr/2026","Mai/2026","Jun/2026","Jul/2026","Ago/2026"
+  ],
+  // rows indexed same as grupos
+  matrix: {
+    "HIDROMETRO CORRETIVO": [0,0,0, 0,0,0,0,0,0,0,1,0,1,0,0, 0,2,21,23,66,2460,42172,0],
+    "CORTE":                [3,1,1, 5,6,2,1,79,2,5,17,3,8,0,15, 285,348,21,22,810,3371,11494,0],
+    "EXAME PREDIAL":        [0,0,0, 0,1,2,1,2,0,1,29,30,19,87,70, 9581,255,328,604,1385,3040,46,0],
+    "(SEM CLASSIFICAÇÃO DEFINIDA)": [0,0,0, 0,1,0,0,0,0,0,1,0,0,0,1, 2,2,71,84,272,11326,0,0],
+    "SUPRESSÃO":            [0,1,2, 3,1,3,5,23,26,3,9,1,2,1,0, 1,3,11,19,2644,8511,9,0],
+    "AFERIÇÃO":             [0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0, 0,0,85,214,152,204,0,3],
+    "APROVAÇÃO AGUA":       [0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,9,59,275,0,0],
+    "APROVAÇÃO ESGOTO":     [0,0,0, 0,0,0,0,0,0,1,0,1,1,1,1, 6,4,11,29,31,113,0,0],
+    "ERRO":                 [0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,1,0,0],
+    "FITA LACRE":           [0,0,0, 0,0,0,0,0,0,0,0,0,0,0,0, 0,0,0,0,0,1,0,0]
+  },
+  oldest: {
+    "HIDROMETRO CORRETIVO": "Ago/2025",
+    "CORTE": "Set/2024",
+    "EXAME PREDIAL": "Fev/2025",
+    "(SEM CLASSIFICAÇÃO DEFINIDA)": "Fev/2025",
+    "SUPRESSÃO": "Out/2024",
+    "AFERIÇÃO": "Mar/2026",
+    "APROVAÇÃO AGUA": "Abr/2026",
+    "APROVAÇÃO ESGOTO": "Jul/2025",
+    "ERRO": "Jun/2026",
+    "FITA LACRE": "Jun/2026"
+  }
+};
+
+const COLORS = {
+  "HIDROMETRO CORRETIVO":         "#4f8ef7",
+  "CORTE":                        "#f74f4f",
+  "EXAME PREDIAL":                "#4ff7a0",
+  "(SEM CLASSIFICAÇÃO DEFINIDA)": "#7880a8",
+  "SUPRESSÃO":                    "#f7934f",
+  "AFERIÇÃO":                     "#f7e04f",
+  "APROVAÇÃO AGUA":               "#4ff0f7",
+  "APROVAÇÃO ESGOTO":             "#c04ff7",
+  "ERRO":                         "#f74f8e",
+  "FITA LACRE":                   "#a8f74f"
+};
+
+// Compute totals
+const totals = {};
+DATA.grupos.forEach(g => {
+  totals[g] = DATA.matrix[g].reduce((a,b) => a+b, 0);
+});
+const grandTotal = Object.values(totals).reduce((a,b) => a+b, 0);
+
+// State
+let selectedGrupo = null;
+let chartView = 'bar';
+let mainChartInstance = null;
+let pieChartInstance = null;
+
+// =============================================
+// RENDER CARDS
+// =============================================
+function renderCards() {
+  const container = document.getElementById('cardsContainer');
+  document.getElementById('totalBadge').textContent = grandTotal.toLocaleString('pt-BR') + ' OS';
+
+  // Sort by total desc
+  const sorted = [...DATA.grupos].sort((a,b) => totals[b]-totals[a]);
+
+  container.innerHTML = sorted.map(g => {
+    const color = COLORS[g];
+    const pct = ((totals[g]/grandTotal)*100).toFixed(1);
+    const isActive = selectedGrupo === g;
+    return `
+      <div class="card ${isActive?'active':''}" style="--card-color:${color}" onclick="selectGrupo('${g.replace(/'/g,"\\'")}')">
+        <div class="card-label">${g}</div>
+        <div class="card-value">${totals[g].toLocaleString('pt-BR')}</div>
+        <div class="card-sub">${pct}% do total</div>
+        <div class="card-oldest">⏱ Mais antigo: ${DATA.oldest[g]}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// =============================================
+// MAIN CHART
+// =============================================
+function getChartData() {
+  if (!selectedGrupo) {
+    // Sum all grupos per month
+    const vals = DATA.meses.map((_, mi) =>
+      DATA.grupos.reduce((sum, g) => sum + DATA.matrix[g][mi], 0)
+    );
+    return {
+      labels: DATA.meses,
+      datasets: [{
+        label: 'Todas as OS',
+        data: vals,
+        backgroundColor: 'rgba(79,142,247,0.7)',
+        borderColor: '#4f8ef7',
+        borderWidth: 2,
+        borderRadius: 4,
+        pointRadius: 4,
+        pointBackgroundColor: '#4f8ef7',
+        fill: chartView === 'line',
+        tension: 0.35
+      }]
+    };
+  } else {
+    const g = selectedGrupo;
+    return {
+      labels: DATA.meses,
+      datasets: [{
+        label: g,
+        data: DATA.matrix[g],
+        backgroundColor: COLORS[g] + 'bb',
+        borderColor: COLORS[g],
+        borderWidth: 2,
+        borderRadius: 4,
+        pointRadius: 4,
+        pointBackgroundColor: COLORS[g],
+        fill: chartView === 'line',
+        tension: 0.35
+      }]
+    };
+  }
+}
+
+function renderMainChart() {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (mainChartInstance) mainChartInstance.destroy();
+
+  const chartData = getChartData();
+  mainChartInstance = new Chart(ctx, {
+    type: chartView === 'line' ? 'line' : 'bar',
+    data: chartData,
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: '#2e334d',
+          borderWidth: 1,
+          titleColor: '#e8eaf6',
+          bodyColor: '#7880a8',
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.y.toLocaleString('pt-BR')} OS`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#7880a8', font: { size: 9 }, maxRotation: 45 },
+          grid: { color: 'rgba(46,51,77,0.4)' }
+        },
+        y: {
+          ticks: { color: '#7880a8', font: { size: 10 },
+            callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v
+          },
+          grid: { color: 'rgba(46,51,77,0.4)' }
+        }
+      }
+    }
+  });
+
+  // Update title
+  const lbl = selectedGrupo || 'Todos os Grupos';
+  document.getElementById('chartTitle').textContent = `Volume por Mês — ${lbl}`;
+  document.getElementById('monthlyTitle').textContent = `Volume Mensal — ${lbl}`;
+}
+
+// =============================================
+// PIE CHART
+// =============================================
+function renderPieChart() {
+  const ctx = document.getElementById('pieChart').getContext('2d');
+  if (pieChartInstance) pieChartInstance.destroy();
+
+  const sorted = [...DATA.grupos].sort((a,b) => totals[b]-totals[a]);
+  pieChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: sorted,
+      datasets: [{
+        data: sorted.map(g => totals[g]),
+        backgroundColor: sorted.map(g => COLORS[g] + 'cc'),
+        borderColor: sorted.map(g => COLORS[g]),
+        borderWidth: 2,
+        hoverOffset: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '60%',
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: '#7880a8',
+            font: { size: 9 },
+            boxWidth: 10,
+            padding: 8
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: '#2e334d',
+          borderWidth: 1,
+          titleColor: '#e8eaf6',
+          bodyColor: '#7880a8',
+          callbacks: {
+            label: ctx => ` ${ctx.parsed.toLocaleString('pt-BR')} OS (${((ctx.parsed/grandTotal)*100).toFixed(1)}%)`
+          }
+        }
+      }
+    }
+  });
+}
+
+// =============================================
+// SUMMARY TABLE
+// =============================================
+function renderSummaryTable() {
+  const sorted = [...DATA.grupos].sort((a,b) => totals[b]-totals[a]);
+  const maxVal = Math.max(...Object.values(totals));
+
+  document.getElementById('tableBody').innerHTML = sorted.map(g => {
+    const color = COLORS[g];
+    const pct = ((totals[g]/grandTotal)*100).toFixed(1);
+    const barW = ((totals[g]/maxVal)*100).toFixed(1);
+    return `<tr>
+      <td><span class="grupo-badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${g}</span></td>
+      <td class="num" style="color:${color};font-weight:700">${totals[g].toLocaleString('pt-BR')}</td>
+      <td><span class="oldest-tag">⏱ ${DATA.oldest[g]}</span></td>
+      <td class="bar-cell">
+        <div class="bar-bg"><div class="bar-fill" style="width:${barW}%;background:${color}"></div></div>
+      </td>
+      <td class="num" style="color:var(--muted)">${pct}%</td>
+    </tr>`;
+  }).join('');
+}
+
+// =============================================
+// MONTHLY TABLE
+// =============================================
+function renderMonthlyTable() {
+  const grupos = selectedGrupo ? [selectedGrupo] : DATA.grupos;
+
+  // Filter months that have any data
+  const activeMeses = DATA.meses.filter((_, mi) =>
+    grupos.some(g => DATA.matrix[g][mi] > 0)
+  );
+
+  const head = document.getElementById('monthlyHead');
+  const body = document.getElementById('monthlyBody');
+
+  head.innerHTML = `<tr>
+    <th>Grupo</th>
+    ${activeMeses.map(m => `<th class="num">${m}</th>`).join('')}
+    <th class="num">Total</th>
+  </tr>`;
+
+  // Sort by total desc
+  const sorted = [...grupos].sort((a,b) => totals[b]-totals[a]);
+
+  body.innerHTML = sorted.map(g => {
+    const color = COLORS[g];
+    const rowTotal = DATA.meses.reduce((sum,_,mi) => sum + DATA.matrix[g][mi], 0);
+    return `<tr>
+      <td><span style="font-size:10px;font-weight:700;color:${color}">${g}</span></td>
+      ${DATA.meses.filter((_,mi) => grupos.some(gg => DATA.matrix[gg][mi] > 0))
+        .map((_,mi) => {
+          const realMi = DATA.meses.indexOf(activeMeses[mi]);
+          const v = DATA.matrix[g][realMi];
+          return `<td class="num" style="color:${v>0?color:'var(--border)'};font-weight:${v>0?700:400}">${v>0?v.toLocaleString('pt-BR'):'—'}</td>`;
+        }).join('')}
+      <td class="num" style="color:${color};font-weight:800">${rowTotal.toLocaleString('pt-BR')}</td>
+    </tr>`;
+  }).join('');
+
+  // Totals row
+  if (!selectedGrupo) {
+    const totRow = activeMeses.map((_, mi) => {
+      const realMi = DATA.meses.indexOf(activeMeses[mi]);
+      return DATA.grupos.reduce((s,g) => s + DATA.matrix[g][realMi], 0);
+    });
+    body.innerHTML += `<tr style="font-weight:800;border-top:2px solid var(--border)">
+      <td style="color:var(--text)">TOTAL</td>
+      ${totRow.map(v => `<td class="num" style="color:var(--accent)">${v.toLocaleString('pt-BR')}</td>`).join('')}
+      <td class="num" style="color:var(--accent)">${grandTotal.toLocaleString('pt-BR')}</td>
+    </tr>`;
+  }
+}
+
+// =============================================
+// INTERACTIONS
+// =============================================
+function selectGrupo(g) {
+  selectedGrupo = selectedGrupo === g ? null : g;
+  renderCards();
+  renderMainChart();
+  renderMonthlyTable();
+  document.getElementById('monthlyTitle').textContent =
+    `Volume Mensal — ${selectedGrupo || 'Todos os Grupos'}`;
+}
+
+function setView(v) {
+  chartView = v;
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(v === 'bar' ? 'barra' : 'linha'));
+  });
+  renderMainChart();
+}
+
+// =============================================
+// INIT
+// =============================================
+renderCards();
+renderMainChart();
+renderPieChart();
+renderSummaryTable();
+renderMonthlyTable();
+</script>
+</body>
+</html>
